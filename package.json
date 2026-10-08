@@ -4,7 +4,8 @@
     "type": "module",
     "scripts": {
         "start": "tsx clear-watch-later.ts",
-        "typecheck": "tsc --noEmit --strict --module nodenext --moduleResolution nodenext --target es2022 clear-watch-later.ts"
+        "test": "tsx --test cli.test.ts",
+        "typecheck": "tsc --noEmit --strict --module nodenext --moduleResolution nodenext --target es2022 --allowImportingTsExtensions clear-watch-later.ts cli.test.ts"
     },
     "dependencies": {
         "playwright": "^1.48.0"

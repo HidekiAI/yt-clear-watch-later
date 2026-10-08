@@ -15,9 +15,14 @@
 #
 # Usage (put this file in the same folder as clear-watch-later.ts and package.json):
 #   chmod +x run-brave.sh
-#   ./run-brave.sh                 # remove everything
-#   DRY_RUN=1 ./run-brave.sh       # count only
-#   MAX=10 ./run-brave.sh          # test on 10 videos
+#   ./run-brave.sh --clear-all             # remove everything
+#   ./run-brave.sh --num-days 30           # remove videos older than 30 days
+#   ./run-brave.sh --help                  # show all options
+#   DRY_RUN=1 ./run-brave.sh --num-days 30 # count only
+#   MAX=10 ./run-brave.sh --clear-all      # test on 10 videos
+#
+# A mode flag is required: with no arguments the TS script prints its help and
+# exits 1 (checked here before the browser is started).
 #
 # Every env var the TS script understands (DRY_RUN, MAX, DELAY_MS, REMOVE_TEXT)
 # is passed straight through.
@@ -39,8 +44,11 @@ PROFILE_DIR="${PROFILE_DIR:-$HOME/.yt-wl-brave}"
 CDP_URL="http://127.0.0.1:${PORT}"
 BRAVE_PID=""
 
-log()  { printf '\033[1;34m[run-brave]\033[0m %s\n' "$*"; }
-die()  { printf '\033[1;31m[run-brave]\033[0m %s\n' "$*" >&2; exit 1; }
+log() { printf '\033[1;34m[run-brave]\033[0m %s\n' "$*"; }
+die() {
+    printf '\033[1;31m[run-brave]\033[0m %s\n' "$*" >&2
+    exit 1
+}
 
 # ---------------------------------------------------------------------------
 # Cleanup: stop the Brave we launched (never one that was already running).
@@ -59,15 +67,15 @@ trap cleanup EXIT INT TERM
 # 1. Prerequisites
 # ---------------------------------------------------------------------------
 [[ -f "$SCRIPT_DIR/clear-watch-later.ts" ]] || die "clear-watch-later.ts not found next to this script."
-[[ -f "$SCRIPT_DIR/package.json" ]]         || die "package.json not found next to this script."
+[[ -f "$SCRIPT_DIR/package.json" ]] || die "package.json not found next to this script."
 
 command -v curl >/dev/null || die "curl missing: sudo apt install curl"
 command -v node >/dev/null || die "Node.js missing: sudo apt install nodejs npm (needs >= 18)"
-command -v npm  >/dev/null || die "npm missing: sudo apt install npm"
+command -v npm >/dev/null || die "npm missing: sudo apt install npm"
 
 # Debian 12 ships Node 18, Debian 13 ships Node 20; both are fine for tsx + Playwright.
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
-(( NODE_MAJOR >= 18 )) || die "Node $NODE_MAJOR is too old; need >= 18 (try nvm or NodeSource)."
+((NODE_MAJOR >= 18)) || die "Node $NODE_MAJOR is too old; need >= 18 (try nvm or NodeSource)."
 
 # Brave needs a display. Over plain SSH this will fail; run it from the desktop
 # session or use `ssh -X` (slow) / a remote desktop instead.
@@ -83,6 +91,13 @@ if [[ ! -d "$SCRIPT_DIR/node_modules/playwright" ]]; then
     (cd "$SCRIPT_DIR" && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --no-fund --no-audit)
 fi
 
+# Fail fast on a missing mode, before any browser is started: the TS script
+# prints its own help and exits 1 when given no arguments.
+if [[ $# -eq 0 ]]; then
+    (cd "$SCRIPT_DIR" && npx --no-install tsx clear-watch-later.ts)
+    exit 1
+fi
+
 # ---------------------------------------------------------------------------
 # 3. Find and start Brave
 # ---------------------------------------------------------------------------
@@ -94,7 +109,10 @@ else
     if [[ -z "${BRAVE_BIN:-}" ]]; then
         # apt package from brave.com installs brave-browser; snap/others vary.
         for c in brave-browser brave brave-browser-stable /opt/brave.com/brave/brave; do
-            if command -v "$c" >/dev/null 2>&1; then BRAVE_BIN="$(command -v "$c")"; break; fi
+            if command -v "$c" >/dev/null 2>&1; then
+                BRAVE_BIN="$(command -v "$c")"
+                break
+            fi
         done
     fi
 
@@ -143,4 +161,4 @@ read -r -p "Press Enter to start (Ctrl+C to abort)... "
 # ---------------------------------------------------------------------------
 log "Running clear-watch-later.ts"
 cd "$SCRIPT_DIR"
-MODE=cdp CDP_URL="$CDP_URL" npx --no-install tsx clear-watch-later.ts
+MODE=cdp CDP_URL="$CDP_URL" npx --no-install tsx clear-watch-later.ts "$@"
