@@ -2,6 +2,14 @@
     "name": "yt-clear-watch-later",
     "private": true,
     "type": "module",
+    "prettier": {
+        "tabWidth": 4,
+        "useTabs": false,
+        "semi": false,
+        "singleQuote": true,
+        "printWidth": 125,
+        "trailingComma": "es5"
+    },
     "scripts": {
         "start": "tsx clear-watch-later.ts",
         "test": "tsx --test cli.test.ts",
